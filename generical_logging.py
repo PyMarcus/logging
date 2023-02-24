@@ -129,7 +129,7 @@ class GenericalLogging:
         :param message: text that will be saved
         :param new_name: not obligatory
         :param level: I -> INFO, E -> ERROR, C -> CRITICAL, W -> WARNING, D -> DEBUG
-        :return:
+        :return: None
         """
         try:
             calframe = getouterframes(self._was_called, 2)
@@ -177,7 +177,8 @@ class GenericalLogging:
 
     def logging_this_with_rotating(self, message: str, new_name: None | str = None,
                     level: str = "I", formater: List[str] = None,
-                     time_format: str = "%Y-%m-%d %H:%M:%S") -> str | None:
+                     time_format: str = "%Y-%m-%d %H:%M:%S",
+                                   max_bytes: int = None, backup_count: int = None) -> str | None:
         """
         Most recommended!
         Allows you to configure the log
@@ -186,7 +187,7 @@ class GenericalLogging:
         :param message: text that will be saved
         :param new_name: not obligatory
         :param level: I -> INFO, E -> ERROR, C -> CRITICAL, W -> WARNING, D -> DEBUG
-        :return:
+        :return: None
         """
         try:
             calframe = getouterframes(self._was_called, 2)
@@ -208,23 +209,28 @@ class GenericalLogging:
             match level:
                 case "I":
                     logger.setLevel(Levels.INFO)
-                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger = self.__define_settings_rotating(new_name, time_format, format,
+                                                             logger, max_bytes, backup_count)
                     logger.info(message)
                 case "E":
                     logger.setLevel(Levels.INFO)
-                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger = self.__define_settings_rotating(new_name, time_format, format,
+                                                             logger, max_bytes, backup_count)
                     logger.error(message)
                 case "C":
                     logger.setLevel(Levels.INFO)
-                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger = self.__define_settings_rotating(new_name, time_format, format,
+                                                             logger, max_bytes, backup_count)
                     logger.critical(message)
                 case "W":
                     logger.setLevel(Levels.INFO)
-                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger = self.__define_settings_rotating(new_name, time_format, format,
+                                                             logger, max_bytes, backup_count)
                     logger.warning(message)
                 case "D":
                     logger.setLevel(Levels.INFO)
-                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger = self.__define_settings_rotating(new_name, time_format, format,
+                                                             logger, max_bytes, backup_count)
                     logger.debug(message)
         except AssertionError:
             print("""Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
@@ -232,23 +238,32 @@ class GenericalLogging:
             return """Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
                   ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater"""
 
-    @staticmethod
-    def __rotating(name: str, max_bytes: int | None, backupCount: int | None,
-                 ) -> Any:
-        if max_bytes and backupCount:
-            return RotatingFileHandler(name, maxBytes=max_bytes, backupCount=backupCount)
-        elif max_bytes and not backupCount:
-            return RotatingFileHandler(name, maxBytes=max_bytes)
-        elif backupCount and not max_bytes:
-            return RotatingFileHandler(name, backupCount=backupCount)
-
     def __define_settings_rotating(self, name: str, time_format: str, format: str, logger: Any,
                                    max_bytes: int = None, backup: int = None) -> Any:
-        file_handler = self.__rotating(name, max_bytes, backup)
-        console_formatter = logging.Formatter(format, datefmt=time_format)
-        file_handler.setFormatter(console_formatter)
-        logger.addHandler(file_handler)
-        return logger
+        if max_bytes and backup:
+            file_handler = RotatingFileHandler(name, maxBytes=max_bytes, backupCount=backup)
+            console_formatter = logging.Formatter(format, datefmt=time_format)
+            file_handler.setFormatter(console_formatter)
+            logger.addHandler(file_handler)
+            return logger
+        elif max_bytes and not backup:
+            file_handler = RotatingFileHandler(name, maxBytes=max_bytes)
+            console_formatter = logging.Formatter(format, datefmt=time_format)
+            file_handler.setFormatter(console_formatter)
+            logger.addHandler(file_handler)
+            return logger
+        elif backup and not max_bytes:
+            file_handler = RotatingFileHandler(name, backupCount=backup)
+            console_formatter = logging.Formatter(format, datefmt=time_format)
+            file_handler.setFormatter(console_formatter)
+            logger.addHandler(file_handler)
+            return logger
+        else:
+            file_handler = RotatingFileHandler(name)
+            console_formatter = logging.Formatter(format, datefmt=time_format)
+            file_handler.setFormatter(console_formatter)
+            logger.addHandler(file_handler)
+            return logger
 
     @staticmethod
     def __define_settings(time_format: str, format: str, logger: Any) -> Any:
@@ -290,5 +305,7 @@ if __name__ == '__main__':
     g = GenericalLogging('.')
     # g.minimal_log("hello, world!", level="E")
     # g.minimal_log_file("hello, world!", level="D")
-    g.logging_this("hello, world!", level="I", formater=["A"])
+    # g.logging_this("hello, world!", level="I", formater=["A"])
+    g.logging_this_with_rotating("ok", level="I", formater=["A"])
+
 
