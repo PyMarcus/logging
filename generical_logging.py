@@ -1,7 +1,8 @@
-from inspect import currentframe, getouterframes
 import logging
 import sys
 import os
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+from inspect import currentframe, getouterframes
 from datetime import datetime
 from typing import Any, List
 from dataclasses import dataclass, field
@@ -118,10 +119,12 @@ class GenericalLogging:
             return "Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG) "
 
     def logging_this(self, message: str, new_name: None | str = None,
-                    level: str = Levels.INFO, formater: List[str] = None) -> str | None:
+                    level: str = "I", formater: List[str] = None,
+                     time_format: str = "%Y-%m-%d %H:%M:%S") -> str | None:
         """
         Most recommended!
         Allows you to configure the log
+        :param time_format: default: %Y-%m-%d %H:%M:%S
         :param formater: ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]...
         :param message: text that will be saved
         :param new_name: not obligatory
@@ -135,39 +138,125 @@ class GenericalLogging:
         except IndexError:
             ...
         try:
-            print(formater)
             assert level.upper() in ["I", "E", "C", "W", "D"]
             assert self.__contain(formater, ["A", "M", "T", "L"]) == True
 
             if new_name is None:
                 new_name = self.__build_log_name()
-            print(new_name)
+
             # settings
             format = FormatString.SEPARATOR.join(self.__converter(formater))
-            print(format)
             logger = logging.getLogger(new_name)
-            console_handler = logging.StreamHandler()
 
             match level:
                 case "I":
                     logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings(time_format, format, logger)
+                    logger.info(message)
                 case "E":
-                    logging.basicConfig(level=Levels.ERROR, format=format, filename=self.__build_log_name())
-                    logging.error(message)
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings(time_format, format, logger)
+                    logger.error(message)
                 case "C":
-                    logging.basicConfig(level=Levels.CRITICAL, format=format, filename=self.__build_log_name())
-                    logging.critical(message)
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings(time_format, format, logger)
+                    logger.critical(message)
                 case "W":
-                    logging.basicConfig(level=Levels.WARNING, format=format, filename=self.__build_log_name())
-                    logging.warning(message)
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings(time_format, format, logger)
+                    logger.warning(message)
                 case "D":
-                    logging.basicConfig(level=Levels.DEBUG, format=format, filename=self.__build_log_name())
-                    logging.debug(message)
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings(time_format, format, logger)
+                    logger.debug(message)
         except AssertionError:
             print("""Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
                   ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater""")
             return """Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
                   ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater"""
+
+    def logging_this_with_rotating(self, message: str, new_name: None | str = None,
+                    level: str = "I", formater: List[str] = None,
+                     time_format: str = "%Y-%m-%d %H:%M:%S") -> str | None:
+        """
+        Most recommended!
+        Allows you to configure the log
+        :param time_format: default: %Y-%m-%d %H:%M:%S
+        :param formater: ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]...
+        :param message: text that will be saved
+        :param new_name: not obligatory
+        :param level: I -> INFO, E -> ERROR, C -> CRITICAL, W -> WARNING, D -> DEBUG
+        :return:
+        """
+        try:
+            calframe = getouterframes(self._was_called, 2)
+            if calframe[0].function == "minimal_log":
+                raise Exception("Please, remove or comment the minimal_log call!")
+        except IndexError:
+            ...
+        try:
+            assert level.upper() in ["I", "E", "C", "W", "D"]
+            assert self.__contain(formater, ["A", "M", "T", "L"]) == True
+
+            if new_name is None:
+                new_name = self.__build_log_name()
+
+            # settings
+            format = FormatString.SEPARATOR.join(self.__converter(formater))
+            logger = logging.getLogger(new_name)
+
+            match level:
+                case "I":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger.info(message)
+                case "E":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger.error(message)
+                case "C":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger.critical(message)
+                case "W":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger.warning(message)
+                case "D":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_rotating(time_format, format, logger)
+                    logger.debug(message)
+        except AssertionError:
+            print("""Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
+                  ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater""")
+            return """Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
+                  ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater"""
+
+    @staticmethod
+    def __rotating(name: str, max_bytes: int | None, backupCount: int | None,
+                 ) -> Any:
+        if max_bytes and backupCount:
+            return RotatingFileHandler(name, maxBytes=max_bytes, backupCount=backupCount)
+        elif max_bytes and not backupCount:
+            return RotatingFileHandler(name, maxBytes=max_bytes)
+        elif backupCount and not max_bytes:
+            return RotatingFileHandler(name, backupCount=backupCount)
+
+    def __define_settings_rotating(self, name: str, time_format: str, format: str, logger: Any,
+                                   max_bytes: int = None, backup: int = None) -> Any:
+        file_handler = self.__rotating(name, max_bytes, backup)
+        console_formatter = logging.Formatter(format, datefmt=time_format)
+        file_handler.setFormatter(console_formatter)
+        logger.addHandler(file_handler)
+        return logger
+
+    @staticmethod
+    def __define_settings(time_format: str, format: str, logger: Any) -> Any:
+        console_handler = logging.StreamHandler()
+        console_formatter = logging.Formatter(format, datefmt=time_format)
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
+        return logger
 
     @staticmethod
     def __contain(item: Any, compare: Any) -> bool:
@@ -201,5 +290,5 @@ if __name__ == '__main__':
     g = GenericalLogging('.')
     # g.minimal_log("hello, world!", level="E")
     # g.minimal_log_file("hello, world!", level="D")
-    g.logging_this("hello, world!", level="D", formater=["T"])
+    g.logging_this("hello, world!", level="I", formater=["A"])
 
