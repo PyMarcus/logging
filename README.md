@@ -5,3 +5,5 @@ It is a module that aims to be as generic as possible, in order to meet differen
 
 In addition, it has log rotation that can be easily configured, just import and execute according to the docstrings
 
+Furthermore, it has the option to zip the files
+
