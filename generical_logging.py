@@ -258,12 +258,14 @@ class GenericalLogging:
             file_handler = RotatingFileHandler(name, backupCount=backup)
             console_formatter = logging.Formatter(format, datefmt=time_format)
             file_handler.setFormatter(console_formatter)
+            file_handler.namer = lambda name: name.replace(".log", '') + ".log"
             logger.addHandler(file_handler)
             return logger
         else:
             file_handler = RotatingFileHandler(name)
             console_formatter = logging.Formatter(format, datefmt=time_format)
             file_handler.setFormatter(console_formatter)
+            file_handler.namer = lambda name: name.replace(".log", '') + ".log"
             logger.addHandler(file_handler)
             return logger
 
@@ -340,10 +342,12 @@ class GenericalLogging:
             file_handler = TimedRotatingFileHandler(name, backupCount=backup, when=when, interval=interval)
             console_formatter = logging.Formatter(format, datefmt=time_format)
             file_handler.setFormatter(console_formatter)
+            file_handler.namer = lambda name : name.replace(".log", '') + ".log"
             logger.addHandler(file_handler)
             return logger
         else:
             file_handler = TimedRotatingFileHandler(name, when=when, interval=interval)
+            file_handler.namer = lambda name : name.replace(".log", '') + ".log"
             console_formatter = logging.Formatter(format, datefmt=time_format)
             file_handler.setFormatter(console_formatter)
             logger.addHandler(file_handler)
