@@ -82,7 +82,7 @@ class GenericalLogging:
             return "Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG) "
 
     def minimal_log_file(self, message: str, level: str = "I", format: str =
-        "%(asctime)s::%(levelname)s::%(message)s") -> str | None:
+    "%(asctime)s::%(levelname)s::%(message)s") -> str | None:
         """
         Save log file. If no parameter is specified then info will be set
         :param message
@@ -119,7 +119,7 @@ class GenericalLogging:
             return "Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG) "
 
     def logging_this(self, message: str, new_name: None | str = None,
-                    level: str = "I", formater: List[str] = None,
+                     level: str = "I", formater: List[str] = None,
                      time_format: str = "%Y-%m-%d %H:%M:%S") -> str | None:
         """
         Most recommended!
@@ -176,12 +176,14 @@ class GenericalLogging:
                   ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater"""
 
     def logging_this_with_rotating(self, message: str, new_name: None | str = None,
-                    level: str = "I", formater: List[str] = None,
-                     time_format: str = "%Y-%m-%d %H:%M:%S",
+                                   level: str = "I", formater: List[str] = None,
+                                   time_format: str = "%Y-%m-%d %H:%M:%S",
                                    max_bytes: int = None, backup_count: int = None) -> str | None:
         """
         Most recommended!
-        Allows you to configure the log
+        Allows you to configure the log with rotation
+        :param backup_count: limit of log files
+        :param max_bytes: max size for file
         :param time_format: default: %Y-%m-%d %H:%M:%S
         :param formater: ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]...
         :param message: text that will be saved
@@ -265,6 +267,88 @@ class GenericalLogging:
             logger.addHandler(file_handler)
             return logger
 
+    def logging_this_with_time_rotating(self, message: str, new_name: None | str = None,
+                                        level: str = "I", formater: List[str] = None,
+                                        time_format: str = "%Y-%m-%d %H:%M:%S",
+                                        interval: int = None, backup_count: int = None,
+                                        when: str = 'd') -> str | None:
+        """
+        Most recommended!
+        Allows you to configure the log with time rotation
+        :param interval: interval of days
+        :param when: frequency to create a file: "d" -> daily, "midnight", "s" -> seconds
+        :param backup_count: limit of log files
+        :param time_format: default: %Y-%m-%d %H:%M:%S
+        :param formater: ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]...
+        :param message: text that will be saved
+        :param new_name: not obligatory
+        :param level: I -> INFO, E -> ERROR, C -> CRITICAL, W -> WARNING, D -> DEBUG
+        :return: None
+        """
+        try:
+            calframe = getouterframes(self._was_called, 2)
+            if calframe[0].function == "minimal_log":
+                raise Exception("Please, remove or comment the minimal_log call!")
+        except IndexError:
+            ...
+        try:
+            assert level.upper() in ["I", "E", "C", "W", "D"]
+            assert self.__contain(formater, ["A", "M", "T", "L"]) == True
+
+            if new_name is None:
+                new_name = self.__build_log_name()
+
+            # settings
+            format = FormatString.SEPARATOR.join(self.__converter(formater))
+            logger = logging.getLogger(new_name)
+
+            match level:
+                case "I":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_time_rotating(new_name, time_format, format,
+                                                                  logger, when, backup_count, interval)
+                    logger.info(message)
+                case "E":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_time_rotating(new_name, time_format, format,
+                                                                  logger, when, backup_count, interval)
+                    logger.error(message)
+                case "C":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_time_rotating(new_name, time_format, format,
+                                                                  logger, when, backup_count, interval)
+                    logger.critical(message)
+                case "W":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_time_rotating(new_name, time_format, format,
+                                                                  logger, when, backup_count, interval)
+                    logger.warning(message)
+                case "D":
+                    logger.setLevel(Levels.INFO)
+                    logger = self.__define_settings_time_rotating(new_name, time_format, format,
+                                                                  logger, when, backup_count, interval)
+                    logger.debug(message)
+        except AssertionError:
+            print("""Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
+                  ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater""")
+            return """Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
+                  ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater"""
+
+    def __define_settings_time_rotating(self, name: str, time_format: str, format: str, logger: Any,
+                                        when: str = 'd', backup: int = None, interval: int = 1) -> Any:
+        if backup:
+            file_handler = TimedRotatingFileHandler(name, backupCount=backup, when=when, interval=interval)
+            console_formatter = logging.Formatter(format, datefmt=time_format)
+            file_handler.setFormatter(console_formatter)
+            logger.addHandler(file_handler)
+            return logger
+        else:
+            file_handler = TimedRotatingFileHandler(name, when=when, interval=interval)
+            console_formatter = logging.Formatter(format, datefmt=time_format)
+            file_handler.setFormatter(console_formatter)
+            logger.addHandler(file_handler)
+            return logger
+
     @staticmethod
     def __define_settings(time_format: str, format: str, logger: Any) -> Any:
         console_handler = logging.StreamHandler()
@@ -306,6 +390,5 @@ if __name__ == '__main__':
     # g.minimal_log("hello, world!", level="E")
     # g.minimal_log_file("hello, world!", level="D")
     # g.logging_this("hello, world!", level="I", formater=["A"])
-    g.logging_this_with_rotating("ok", level="I", formater=["A"])
-
-
+    # g.logging_this_with_rotating("ok", level="I", formater=["A"])
+    g.logging_this_with_time_rotating("ok", level="I", formater=["A"], when="s", interval=1)
