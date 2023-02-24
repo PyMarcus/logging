@@ -1,6 +1,7 @@
 import logging
 import sys
 import os
+import zipfile
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 from inspect import currentframe, getouterframes
 from datetime import datetime
@@ -273,11 +274,12 @@ class GenericalLogging:
                                         level: str = "I", formater: List[str] = None,
                                         time_format: str = "%Y-%m-%d %H:%M:%S",
                                         interval: int = None, backup_count: int = None,
-                                        when: str = 'd') -> str | None:
+                                        when: str = 'd', zip: bool = False) -> str | None:
         """
         Most recommended!
         Allows you to configure the log with time rotation
         :param interval: interval of days
+        :param zip: IF True, zip the log file
         :param when: frequency to create a file: "d" -> daily, "midnight", "s" -> seconds
         :param backup_count: limit of log files
         :param time_format: default: %Y-%m-%d %H:%M:%S
@@ -308,27 +310,27 @@ class GenericalLogging:
                 case "I":
                     logger.setLevel(Levels.INFO)
                     logger = self.__define_settings_time_rotating(new_name, time_format, format,
-                                                                  logger, when, backup_count, interval)
+                                                                  logger, when, backup_count, interval, zip)
                     logger.info(message)
                 case "E":
                     logger.setLevel(Levels.INFO)
                     logger = self.__define_settings_time_rotating(new_name, time_format, format,
-                                                                  logger, when, backup_count, interval)
+                                                                  logger, when, backup_count, interval, zip)
                     logger.error(message)
                 case "C":
                     logger.setLevel(Levels.INFO)
                     logger = self.__define_settings_time_rotating(new_name, time_format, format,
-                                                                  logger, when, backup_count, interval)
+                                                                  logger, when, backup_count, interval, zip)
                     logger.critical(message)
                 case "W":
                     logger.setLevel(Levels.INFO)
                     logger = self.__define_settings_time_rotating(new_name, time_format, format,
-                                                                  logger, when, backup_count, interval)
+                                                                  logger, when, backup_count, interval, zip)
                     logger.warning(message)
                 case "D":
                     logger.setLevel(Levels.INFO)
                     logger = self.__define_settings_time_rotating(new_name, time_format, format,
-                                                                  logger, when, backup_count, interval)
+                                                                  logger, when, backup_count, interval, zip)
                     logger.debug(message)
         except AssertionError:
             print("""Invalid option! Try: I (INFO), E (ERROR), C (CRITICAL), W(WARNING), D (DEBUG), for Level or
@@ -337,21 +339,36 @@ class GenericalLogging:
                   ["A"] -> all (TIME, LEVEL, MESSAGE) -> ["T", "L"], ["T", "M"]... for Formater"""
 
     def __define_settings_time_rotating(self, name: str, time_format: str, format: str, logger: Any,
-                                        when: str = 'd', backup: int = None, interval: int = 1) -> Any:
+                                        when: str = 'd', backup: int = None, interval: int = 1, zip: bool = False) -> Any:
         if backup:
             file_handler = TimedRotatingFileHandler(name, backupCount=backup, when=when, interval=interval)
             console_formatter = logging.Formatter(format, datefmt=time_format)
             file_handler.setFormatter(console_formatter)
-            file_handler.namer = lambda name : name.replace(".log", '') + ".log"
+            if zip is False:
+                file_handler.namer = lambda name : name.replace(".log", '') + ".log"
+            else:
+                file_handler.namer = lambda name: name.replace(".log", '') + ".zip"
+                file_handler.rotator = self.__zip
             logger.addHandler(file_handler)
             return logger
         else:
             file_handler = TimedRotatingFileHandler(name, when=when, interval=interval)
-            file_handler.namer = lambda name : name.replace(".log", '') + ".log"
+            if zip is False:
+                file_handler.namer = lambda name : name.replace(".log", '') + ".log"
+            else:
+                file_handler.namer = lambda name: name.replace(".log", '') + ".zip"
+                file_handler.rotator = self.__zip
             console_formatter = logging.Formatter(format, datefmt=time_format)
             file_handler.setFormatter(console_formatter)
             logger.addHandler(file_handler)
             return logger
+
+    @staticmethod
+    def __zip(source: str, dest: str) -> None:
+        zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED).write(
+            source, os.path.basename(source)
+        )
+        os.remove(source)
 
     @staticmethod
     def __define_settings(time_format: str, format: str, logger: Any) -> Any:
@@ -395,4 +412,4 @@ if __name__ == '__main__':
     # g.minimal_log_file("hello, world!", level="D")
     # g.logging_this("hello, world!", level="I", formater=["A"])
     # g.logging_this_with_rotating("ok", level="I", formater=["A"])
-    g.logging_this_with_time_rotating("ok", level="I", formater=["A"], when="s", interval=1)
+    g.logging_this_with_time_rotating("ok", level="I", formater=["A"], when="s", interval=1, zip=True)
